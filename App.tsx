@@ -1,8 +1,10 @@
-import { createStaticNavigation, type StaticScreenProps } from '@react-navigation/native'
-import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable'
+import { createStaticNavigation, type StaticParamList, useNavigation } from '@react-navigation/native'
+import { createNativeStackNavigator, type NativeStackNavigationProp } from '@react-navigation/native-stack'
 import { Button, ScrollView, Text, View } from 'react-native'
 
-function Home({ navigation }: { navigation: { navigate: (screen: 'Sheet') => void } }) {
+function Home() {
+  const navigation = useNavigation<TabStackNavigation>()
   return (
     <View style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
       <Button title="1. Open the form sheet" onPress={() => navigation.navigate('Sheet')} />
@@ -11,7 +13,8 @@ function Home({ navigation }: { navigation: { navigate: (screen: 'Sheet') => voi
 }
 
 /** The `fitToContents` sheet: short, so its measured height is roughly a third of the screen. */
-function Sheet({ navigation }: { navigation: { replace: (screen: 'Long') => void } }) {
+function Sheet() {
+  const navigation = useNavigation<TabStackNavigation>()
   return (
     <View style={{ padding: 24, gap: 16 }}>
       <Text>This sheet is short, so `fitToContents` measures a small height.</Text>
@@ -21,7 +24,7 @@ function Sheet({ navigation }: { navigation: { replace: (screen: 'Long') => void
 }
 
 /** A plain screen of the same stack, taller than the sheet — and taller than the screen. */
-function Long(_: StaticScreenProps<undefined>) {
+function Long() {
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic">
       {Array.from({ length: 30 }, (_row, index) => (
@@ -34,9 +37,9 @@ function Long(_: StaticScreenProps<undefined>) {
   )
 }
 
-// The stack has to be nested: replacing a form sheet screen of the *root* stack presents the
-// replacement correctly.
-const InnerStack = createNativeStackNavigator({
+// The sheet lives in a stack of a tab, i.e. two navigators deep. Replacing a form sheet screen of
+// the root stack presents the replacement correctly.
+const TabStack = createNativeStackNavigator({
   screens: {
     Home,
     Sheet: {
@@ -47,11 +50,20 @@ const InnerStack = createNativeStackNavigator({
   },
 })
 
-const RootStack = createNativeStackNavigator({
+const Tabs = createNativeBottomTabNavigator({
   screens: {
-    Inner: { screen: InnerStack, options: { headerShown: false } },
+    'First-Tab': { screen: TabStack, options: { title: 'First' } },
+    'Second-Tab': { screen: Long, options: { title: 'Second' } },
   },
 })
+
+const RootStack = createNativeStackNavigator({
+  screens: {
+    Main: { screen: Tabs, options: { headerShown: false } },
+  },
+})
+
+type TabStackNavigation = NativeStackNavigationProp<StaticParamList<typeof TabStack>>
 
 const Navigation = createStaticNavigation(RootStack)
 
