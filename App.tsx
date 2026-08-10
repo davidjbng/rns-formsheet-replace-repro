@@ -1,10 +1,11 @@
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable'
 import { createStaticNavigation, type StaticParamList, useNavigation } from '@react-navigation/native'
 import { createNativeStackNavigator, type NativeStackNavigationProp } from '@react-navigation/native-stack'
+import { useLayoutEffect } from 'react'
 import { Button, ScrollView, Text, View } from 'react-native'
 
 /** Bump on every change, so it is visible on the device which version is being tested. */
-const REPRO_VERSION = 'repro v2 · sheet in a tab stack'
+const REPRO_VERSION = 'repro v3 · + margin auto, setOptions, sheet chrome'
 
 function Home() {
   const navigation = useNavigation<TabStackNavigation>()
@@ -28,10 +29,22 @@ function Sheet() {
   )
 }
 
-/** A plain screen of the same stack, taller than the sheet — and taller than the screen. */
+/**
+ * A plain screen of the same stack, taller than the sheet — and taller than the screen. Mirrors the
+ * screen in our app: `margin: 'auto'` on the ScrollView (a centred max-width container) and a title
+ * that is set in a layout effect, i.e. an options update after mount.
+ */
 function Long() {
+  const navigation = useNavigation<TabStackNavigation>()
+  useLayoutEffect(() => {
+    navigation.setOptions({ title: 'Long screen' })
+  }, [navigation])
+
   return (
-    <ScrollView contentInsetAdjustmentBehavior="automatic">
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      style={{ width: '100%', maxWidth: 900, margin: 'auto' }}
+    >
       {Array.from({ length: 30 }, (_row, index) => (
         <Text key={index} style={{ fontSize: 22, padding: 12 }}>
           Row {index + 1} of 30
@@ -49,7 +62,13 @@ const TabStack = createNativeStackNavigator({
     Home,
     Sheet: {
       screen: Sheet,
-      options: { presentation: 'formSheet', sheetAllowedDetents: 'fitToContents' },
+      options: {
+        presentation: 'formSheet',
+        sheetAllowedDetents: 'fitToContents',
+        sheetGrabberVisible: true,
+        sheetCornerRadius: 10,
+        headerTitle: 'Pick something',
+      },
     },
     Long,
   },
