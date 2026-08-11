@@ -1,34 +1,42 @@
-# Repro: `replace()` from a `fitToContents` form sheet in a nested stack keeps the sheet's height
+# Repro: `replace()` from a `fitToContents` form sheet keeps the sheet's height
 
 Minimal reproduction for [react-native-screens#3615](https://github.com/software-mansion/react-native-screens/issues/3615).
 
-A screen with `presentation: 'formSheet'` and `sheetAllowedDetents: 'fitToContents'` replaces
-itself with a plain screen of the same **nested** stack. The replacement is shown inside the sheet
-that UIKit has already presented, and it keeps the detent measured for the *previous* screen: its
-content is cut off there, and anything below the sheet's edge no longer takes touches.
+A screen with `presentation: 'formSheet'` and `sheetAllowedDetents: 'fitToContents'` replaces itself
+with a plain screen of the same stack. The replacement is shown inside the sheet that UIKit has
+already presented, and it keeps the detent that was measured for the *previous* screen: its content
+is cut off there, and anything below the sheet's edge no longer takes touches.
 
 ## Steps to reproduce
 
 1. `npm install`
 2. `npx expo run:ios`
-3. Tap **1. Open the form sheet** — a short `fitToContents` sheet appears
-4. Tap **2. replace() with the Long screen**
+3. The app starts with the form sheet open — as it is when a deep link opens it (see below)
+4. Tap **replace() with the Long screen**
 
 ## What happens
 
 `Long` appears cut off at the height that was measured for `Sheet` — roughly a third of the screen —
-with the rest of the screen blank. Its rows continue below the invisible edge, so they are only
+with the rest of the screen blank: only 4 of its 30 rows are visible. The remaining rows are only
 reachable by scrolling, and the button at the end of the list does not respond to taps.
 
 ## What was expected
 
 `Long` is a plain screen of the stack, so it should fill the screen — as it does when it is opened
-directly (`navigate('Long')` from `Home`).
+directly (`navigate('Long')`).
+
+## What it takes
+
+Both of these are needed; drop either one and the replacement is presented at full size:
+
+- The sheet is part of the navigation state the app **starts with** — a deep link, a push
+  notification or a restored state. Tap **Open the form sheet (works)** on `Home` to open the very
+  same sheet a moment later: replacing it then measures the replacement correctly.
+- The sheet lives in a stack **nested** in another navigator (here: a native bottom tab navigator).
+  The same `replace()` in the root stack presents the replacement at full size.
 
 ## Notes
 
-- Only the **nested** stack is affected. The same `replace()` from a form sheet of the *root* stack
-  presents the replacement at full size.
 - A full-height detent on the replacing screen (`sheetAllowedDetents: [1]`) does not help: without
   its own `formSheet` presentation, `registerContentWrapper` returns `NO` and the sheet update paths
   return early (`ios/RNSScreen.mm`), so nothing re-measures.

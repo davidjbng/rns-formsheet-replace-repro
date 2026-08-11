@@ -1,21 +1,10 @@
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable'
 import { createStaticNavigation, type StaticParamList, useNavigation } from '@react-navigation/native'
 import { createNativeStackNavigator, type NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { useLayoutEffect } from 'react'
 import { Button, ScrollView, Text, View } from 'react-native'
 
 /** Bump on every change, so it is visible on the device which version is being tested. */
-const REPRO_VERSION = 'repro v3 · + margin auto, setOptions, sheet chrome'
-
-function Home() {
-  const navigation = useNavigation<TabStackNavigation>()
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', gap: 24, padding: 24 }}>
-      <Text style={{ textAlign: 'center', color: '#666' }}>{REPRO_VERSION}</Text>
-      <Button title="1. Open the form sheet" onPress={() => navigation.navigate('Sheet')} />
-    </View>
-  )
-}
+const REPRO_VERSION = 'repro v8 · sheet from the initial state, nested stack'
 
 /** The `fitToContents` sheet: short, so its measured height is roughly a third of the screen. */
 function Sheet() {
@@ -24,27 +13,16 @@ function Sheet() {
     <View style={{ padding: 24, gap: 16 }}>
       <Text>This sheet is short, so `fitToContents` measures a small height.</Text>
       <Text style={{ color: '#666' }}>{REPRO_VERSION}</Text>
-      <Button title="2. replace() with the Long screen" onPress={() => navigation.replace('Long')} />
+      <Button title="replace() with the Long screen" onPress={() => navigation.replace('Long')} />
     </View>
   )
 }
 
-/**
- * A plain screen of the same stack, taller than the sheet — and taller than the screen. Mirrors the
- * screen in our app: `margin: 'auto'` on the ScrollView (a centred max-width container) and a title
- * that is set in a layout effect, i.e. an options update after mount.
- */
+/** A plain screen of the same stack, taller than the sheet — and taller than the screen. */
 function Long() {
-  const navigation = useNavigation<TabStackNavigation>()
-  useLayoutEffect(() => {
-    navigation.setOptions({ title: 'Long screen' })
-  }, [navigation])
-
   return (
-    <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
-      style={{ width: '100%', maxWidth: 900, margin: 'auto' }}
-    >
+    <ScrollView>
+      <Text style={{ fontSize: 22, padding: 12 }}>{REPRO_VERSION}</Text>
       {Array.from({ length: 30 }, (_row, index) => (
         <Text key={index} style={{ fontSize: 22, padding: 12 }}>
           Row {index + 1} of 30
@@ -55,8 +33,19 @@ function Long() {
   )
 }
 
-// The sheet lives in a stack of a tab, i.e. two navigators deep. Replacing a form sheet screen of
-// the root stack presents the replacement correctly.
+function Home() {
+  const navigation = useNavigation<TabStackNavigation>()
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', gap: 24, padding: 24 }}>
+      <Text style={{ textAlign: 'center', color: '#666' }}>{REPRO_VERSION}</Text>
+      {/* The same sheet, opened later instead of from the initial state: replacing it works. */}
+      <Button title="Open the form sheet (works)" onPress={() => navigation.navigate('Sheet')} />
+    </View>
+  )
+}
+
+// The sheet has to live in a *nested* stack: doing the same in the root stack presents the
+// replacement at full size.
 const TabStack = createNativeStackNavigator({
   screens: {
     Home,
@@ -66,7 +55,6 @@ const TabStack = createNativeStackNavigator({
         presentation: 'formSheet',
         sheetAllowedDetents: 'fitToContents',
         sheetGrabberVisible: true,
-        sheetCornerRadius: 10,
         headerTitle: 'Pick something',
       },
     },
@@ -77,7 +65,7 @@ const TabStack = createNativeStackNavigator({
 const Tabs = createNativeBottomTabNavigator({
   screens: {
     'First-Tab': { screen: TabStack, options: { title: 'First' } },
-    'Second-Tab': { screen: Long, options: { title: 'Second' } },
+    'Second-Tab': { screen: Home, options: { title: 'Second' } },
   },
 })
 
@@ -91,6 +79,21 @@ type TabStackNavigation = NativeStackNavigationProp<StaticParamList<typeof TabSt
 
 const Navigation = createStaticNavigation(RootStack)
 
+/**
+ * The sheet is part of the state the app starts with — as it is when a deep link, a push
+ * notification or a restored state opens it. Opening it later from `Home` does not reproduce.
+ */
+const initialState = {
+  routes: [
+    {
+      name: 'Main',
+      state: {
+        routes: [{ name: 'First-Tab', state: { index: 1, routes: [{ name: 'Home' }, { name: 'Sheet' }] } }],
+      },
+    },
+  ],
+}
+
 export default function App() {
-  return <Navigation />
+  return <Navigation initialState={initialState} />
 }
